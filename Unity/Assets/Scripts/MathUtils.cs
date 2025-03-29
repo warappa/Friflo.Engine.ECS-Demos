@@ -2,11 +2,16 @@
 // See LICENSE file in the project root for full license information.
 
 
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+
 public static class MathExtensions
 {
-    public static UnityEngine.Matrix4x4 AsUnityMatrix4x4(in this System.Numerics.Matrix4x4 m)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static UnityEngine.Matrix4x4 AsUnityMatrix4x4(this System.Numerics.Matrix4x4 m)
     {
-        return new UnityEngine.Matrix4x4 
+        return Unsafe.As<System.Numerics.Matrix4x4, UnityEngine.Matrix4x4>(ref m);
+        return new UnityEngine.Matrix4x4
         {
             m00 = m.M11,    m01 = m.M21,    m02 = m.M31,    m03 = m.M41,
             m10 = m.M12,    m11 = m.M22,    m12 = m.M32,    m13 = m.M42,

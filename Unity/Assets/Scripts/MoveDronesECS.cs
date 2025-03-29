@@ -72,6 +72,8 @@ public class MoveDronesECS : MonoBehaviour
     private const int FPSSampleCount = 30;
     private readonly int[] fpsSamples = new int[FPSSampleCount];
     private int sampleIndex;
+    private ComputeBuffer argsBuffer;
+    private ComputeBuffer instanceBuffer;
 
     private void UpdateFps()
     {
@@ -87,20 +89,67 @@ public class MoveDronesECS : MonoBehaviour
     {
         fpsSamples[sampleIndex++] = (int)(1.0f / Time.deltaTime);
         if (sampleIndex >= FPSSampleCount) sampleIndex = 0;
-        
-        UpdateFps();
-        
-        var deltaTime = Time.deltaTime * 1000;
-        drones.UpdateTransforms(deltaTime, default);
 
+        UpdateFps();
+
+        var deltaTime = Time.deltaTime * 1000;
+
+        UpdateDronesTransforms(deltaTime);
+
+        UpdateTransformsArray();
+
+        UpdateGraphicsMesh();
+    }
+
+    private void UpdateDronesTransforms(float deltaTime)
+    {
+        drones.UpdateTransforms(deltaTime, default);
+    }
+
+    private void UpdateTransformsArray()
+    {
         int n = 0;
-        // var scale = Matrix4x4.Scale(new Vector3(10, 10, 10));
+        var scale = Matrix4x4.Scale(new Vector3(10, 10, 10));
         foreach (var (transforms, _) in drones.transQuery.Chunks)
         {
-            foreach (ref var trans in transforms.Span) {
-                instData[n++] = trans.value.AsUnityMatrix4x4();
+            foreach (ref var trans in transforms.Span)
+            {
+                ref var data = ref instData[n++];
+                data = trans.value.AsUnityMatrix4x4();
             }
         }
-        Graphics.RenderMeshInstanced(rp, mesh, 0, instData, entityCount);
+    }
+
+    private void UpdateGraphicsMesh()
+    {
+        //Graphics.RenderMeshInstanced(rp, mesh, 0, instData, entityCount);
+        InitializeDrawMesh();
+    }
+
+    private void InitializeDrawMesh()
+    {
+        var instanceCount = entityCount;
+
+        //Matrix4x4[] matrices = new Matrix4x4[instanceCount];
+        //for (int i = 0; i < instanceCount; i++)
+        //{
+        //    Vector3 position = Random.insideUnitSphere * 10f;
+        //    matrices[i] = Matrix4x4.TRS(position, Quaternion.identity, Vector3.one);
+        //}
+
+        instanceBuffer = new ComputeBuffer(instanceCount, 64); // 64 bytes per 4x4 matrix
+        instanceBuffer.SetData(instData);
+
+        // Step 2: Create the Indirect Draw Args Buffer
+        uint[] args = new uint[5] { mesh.GetIndexCount(0), (uint)instanceCount, 0, 0, 0 };
+        argsBuffer = new ComputeBuffer(1, args.Length * sizeof(uint), ComputeBufferType.IndirectArguments);
+        argsBuffer.SetData(args);
+
+        // Step 3: Bind instance buffer to material
+        MaterialPropertyBlock mpb = new MaterialPropertyBlock();
+        mpb.SetBuffer("_InstanceData", instanceBuffer);
+
+        // Step 4: Call DrawMeshInstancedIndirect
+        Graphics.DrawMeshInstancedIndirect(mesh, 0, material, new Bounds(Vector3.zero, Vector3.one * 1000), argsBuffer, 0, mpb);
     }
 }
