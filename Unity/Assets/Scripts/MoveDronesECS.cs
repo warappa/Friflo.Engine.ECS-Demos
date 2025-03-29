@@ -3,7 +3,6 @@
 
 using System;
 using Example.Systems;
-using NumericsConverter;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Profiling;
@@ -130,7 +129,8 @@ public class MoveDronesECS : MonoBehaviour
                 //ref var data = ref instData[n++];
                 //data = trans.value.AsUnityMatrix4x4();
                 //instData[n++] = trans.value.AsUnityMatrix4x4();
-                SetValue(ref instData[n++], ref trans.value);
+                //SetValue(ref instData[n++], ref trans.value);
+                instData[n++] = trans.value;
                 //instData[n++] = trans.value.ToUnity();
             }
         }

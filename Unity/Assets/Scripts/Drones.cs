@@ -3,9 +3,15 @@
 
 using Friflo.Engine.ECS;
 using System;
-using System.Numerics;
 using Unity.Mathematics;
 using UnityEngine.Profiling;
+
+using Vector3 = UnityEngine.Vector3;
+using Matrix4x4 = UnityEngine.Matrix4x4;
+using Position = Assets.PositionUnity;
+using Transform = Assets.TransformUnity;
+using UnityEngine;
+
 // Note: Avoid game engine dependencies to enable using code in various engines. E.g.
 //  using UnityEngine;
 //  using Godot;
@@ -99,9 +105,9 @@ namespace Example.Systems
                 for (int n = 0; n < targets.Length; n++)
                 {
                     ref var target = ref targetSpan[n];
-                    target.value.X = distance * x - offset;
-                    target.value.Y = -distance;
-                    target.value.Z = distance * (n / rowCount) - offset;
+                    target.value.x = distance * x - offset;
+                    target.value.y = -distance;
+                    target.value.z = distance * (n / rowCount) - offset;
                     x = (x + 1) % rowCount;
                 }
             }
@@ -120,9 +126,9 @@ namespace Example.Systems
                 for (int n = 0; n < targets.Length; n++)
                 {
                     ref var target = ref targetSpan[n];
-                    target.value.X = distance * x - offset;
-                    target.value.Y = distance * ((n / edgeCount2) % edgeCount2) - distance - offset;
-                    target.value.Z = distance * ((n / edgeCount) % edgeCount) - offset;
+                    target.value.x = distance * x - offset;
+                    target.value.y = distance * ((n / edgeCount2) % edgeCount2) - distance - offset;
+                    target.value.z = distance * ((n / edgeCount) % edgeCount) - offset;
                     x = (x + 1) % edgeCount;
                 }
             }
@@ -140,11 +146,16 @@ namespace Example.Systems
                 for (int n = 0; n < targets.Length; n++)
                 {
                     var pos = (n % ringCount) / ringCountF * Math.PI * 2;
-                    var rot = Matrix4x4.CreateRotationY((float)pos);
+                    //var rot = Matrix4x4.RotateY((float)pos);
+                    //var rot = Matrix4x4.Rotate(new Quaternion(0, (float)pos, 0, 1));
+                    var rot = Matrix4x4.Rotate(Quaternion.EulerRotation(0,(float)pos, 0));
                     var y = distance * (n / ringCount);
                     var v = new Vector3(radius, y, 0);
                     ref var target = ref targetSpan[n];
-                    target.value = Vector3.Transform(v, rot);
+                    //target.value = Vector3.Transform(v, rot);
+
+                    //target.value = math.transform(rot, v);
+                    target.value = rot * v;
                 }
             }
         }
@@ -190,14 +201,20 @@ namespace Example.Systems
                 var targetSpan = targets.Span;
                 for (int n = 0; n < positions.Length; n++)
                 {
-                    //ref var pos = ref positionSpan[n];
-                    //Profiler.BeginSample("lerp");
-                    var pos = Vector3.Lerp(startSpan[n].value, targetSpan[n].value, complete);
-                    //Profiler.EndSample();
+                    //var pos = Vector3.Lerp(startSpan[n].value, targetSpan[n].value, complete);
+                    //var pos = math.lerp(startSpan[n].value, targetSpan[n].value, complete);
+                    var pos = targetSpan[n].value;
+
+
                     positionSpan[n].value = pos;
 
                     //Profiler.BeginSample("world + Matrix4x4.CreateTranslation(pos);");
-                    transformSpan[n].value = world + Matrix4x4.CreateTranslation(pos);
+                    //transformSpan[n].value = world + Matrix4x4.CreateTranslation(pos);
+                    //transformSpan[n].value = world + (Matrix4x4)UnityEngine.Matrix4x4.Translate(pos);
+
+                    //transformSpan[n].value = new Matrix4x4(Vector4.zero, Vector4.zero, Vector4.zero, new Vector4(pos.x, pos.y, pos.z, 1)); //world.Translate(pos);
+                    //transformSpan[n].value = Matrix4x4.identity;
+                    transformSpan[n].value = Matrix4x4.identity.Translate(pos);
                     //Profiler.EndSample();
                 }
 
@@ -221,11 +238,12 @@ namespace Example.Systems
                 for (int n = 0; n < positions.Length; n++)
                 {
                     //ref var pos = ref positionSpan[n];
-                    var pos =  Vector3.Lerp(startSpan[n].value, targetSpan[n].value, complete);
+                    //var pos =  Vector3.Lerp(startSpan[n].value, targetSpan[n].value, complete);
+                    var pos = math.lerp(startSpan[n].value, targetSpan[n].value, complete);
                     //ref var target = ref targets[n];
                     //var pos = target.value;
                     positionSpan[n].value = pos;
-                    transformSpan[n].value = world + Matrix4x4.CreateTranslation(pos);
+                    transformSpan[n].value = world.Translate(pos);
                 }
             });
             queryJob.JobRunner = runner;
@@ -308,3 +326,17 @@ public static class EEEE
 //        return new ChunkEnumerator<T1, T2, T3, T4>(query);
 //    }
 //}
+
+public static class Extensions
+{
+    public static Matrix4x4 Translate(this Matrix4x4 matrix, Vector3 translation)
+    {
+        //matrix.m03 += translation.x;
+        //matrix.m13 += translation.y;
+        //matrix.m23 += translation.z;
+        matrix[0, 3] += translation.x;
+        matrix[1, 3] += translation.y;
+        matrix[2, 3] += translation.z;
+        return matrix;
+    }
+}
