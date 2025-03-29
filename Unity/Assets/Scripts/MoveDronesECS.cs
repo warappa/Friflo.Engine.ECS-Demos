@@ -9,18 +9,20 @@ using UnityEngine;
 // ReSharper disable InconsistentNaming
 public class MoveDronesECS : MonoBehaviour
 {
-    [SerializeField] private TMP_Text   count;
-    [SerializeField] private TMP_Text   fpsText;
-    
-    public  Material        material;
-    public  Mesh            mesh;
-    
-    private RenderParams    rp;
-    private Matrix4x4[]     instData;
-    private int             entityCount;
-    private Shape           shape;
-    private Drones          drones;
-    
+    [SerializeField] private TMP_Text count;
+    [SerializeField] private TMP_Text fpsText;
+
+    public Material material;
+    public Mesh mesh;
+
+    private RenderParams rp;
+    private Matrix4x4[] instData;
+    private int entityCount;
+    private Shape shape;
+    private Drones drones;
+
+    private GraphicsBuffer instanceBuffer;
+
     void Start()
     {
         entityCount = 1024;
@@ -29,40 +31,51 @@ public class MoveDronesECS : MonoBehaviour
         drones.SetEntityCount(entityCount);
         drones.SetTargetPlane(500, 1.2f);
         UpdateGuiCount();
-        rp          = new RenderParams(material);
-        instData    = new Matrix4x4[drones.maxDroneCount];
+        rp = new RenderParams(material);
+        instData = new Matrix4x4[drones.maxDroneCount];
         GameObject.Find("Editor Plane").gameObject.SetActive(false);
+
+        instanceBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, instData.Length, sizeof(float) * 16);
     }
-    
-    private void UpdateGuiCount() {
-        count.text  = $"Count: {entityCount}";
+
+    private void OnDestroy()
+    {
+        instanceBuffer?.Dispose();
+        instanceBuffer = null;
     }
-    
-    private void SetShape (Shape shape)
+
+    private void UpdateGuiCount()
+    {
+        count.text = $"Count: {entityCount}";
+    }
+
+    private void SetShape(Shape shape)
     {
         this.shape = shape;
         switch (shape)
         {
-            case Shape.Plane:	drones.SetTargetPlane(500, 1.2f); 		    break;
-            case Shape.Cube:	drones.SetTargetCube (500, 1.2f);			break;
-            case Shape.Ring:	drones.SetTargetRings(500, 24, 1.2f, 1);	break;
-            case Shape.Rings:	drones.SetTargetRings(500, 20, 1.2f, 10);	break;
+            case Shape.Plane: drones.SetTargetPlane(500, 1.2f); break;
+            case Shape.Cube: drones.SetTargetCube(500, 1.2f); break;
+            case Shape.Ring: drones.SetTargetRings(500, 24, 1.2f, 1); break;
+            case Shape.Rings: drones.SetTargetRings(500, 20, 1.2f, 10); break;
         }
     }
-    
-    public void SetTargetPlane()    => SetShape(Shape.Plane);
-    public void SetTargetCube()     => SetShape(Shape.Cube);
-    public void SetTargetRing()     => SetShape(Shape.Ring);
-    public void SetTargetRings()    => SetShape(Shape.Rings);
-    
-    public void IncreaseCount() {
+
+    public void SetTargetPlane() => SetShape(Shape.Plane);
+    public void SetTargetCube() => SetShape(Shape.Cube);
+    public void SetTargetRing() => SetShape(Shape.Ring);
+    public void SetTargetRings() => SetShape(Shape.Rings);
+
+    public void IncreaseCount()
+    {
         entityCount = Math.Min(drones.maxDroneCount, entityCount * 2);
         drones.SetEntityCount(entityCount);
         SetShape(shape);
         UpdateGuiCount();
     }
-    
-    public void DecreaseCount() {
+
+    public void DecreaseCount()
+    {
         entityCount = Math.Max(4, entityCount / 2);
         drones.SetEntityCount(entityCount);
         SetShape(shape);
@@ -72,8 +85,6 @@ public class MoveDronesECS : MonoBehaviour
     private const int FPSSampleCount = 30;
     private readonly int[] fpsSamples = new int[FPSSampleCount];
     private int sampleIndex;
-    private ComputeBuffer argsBuffer;
-    private ComputeBuffer instanceBuffer;
 
     private void UpdateFps()
     {
@@ -84,7 +95,7 @@ public class MoveDronesECS : MonoBehaviour
         }
         fpsText.text = $"FPS: {sum / FPSSampleCount}";
     }
-    
+
     void Update()
     {
         fpsSamples[sampleIndex++] = (int)(1.0f / Time.deltaTime);
@@ -122,34 +133,16 @@ public class MoveDronesECS : MonoBehaviour
 
     private void UpdateGraphicsMesh()
     {
-        //Graphics.RenderMeshInstanced(rp, mesh, 0, instData, entityCount);
-        InitializeDrawMesh();
-    }
-
-    private void InitializeDrawMesh()
-    {
-        var instanceCount = entityCount;
-
-        //Matrix4x4[] matrices = new Matrix4x4[instanceCount];
-        //for (int i = 0; i < instanceCount; i++)
-        //{
-        //    Vector3 position = Random.insideUnitSphere * 10f;
-        //    matrices[i] = Matrix4x4.TRS(position, Quaternion.identity, Vector3.one);
-        //}
-
-        instanceBuffer = new ComputeBuffer(instanceCount, 64); // 64 bytes per 4x4 matrix
+        instanceBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, instData.Length, sizeof(float) * 16);
         instanceBuffer.SetData(instData);
 
-        // Step 2: Create the Indirect Draw Args Buffer
-        uint[] args = new uint[5] { mesh.GetIndexCount(0), (uint)instanceCount, 0, 0, 0 };
-        argsBuffer = new ComputeBuffer(1, args.Length * sizeof(uint), ComputeBufferType.IndirectArguments);
-        argsBuffer.SetData(args);
+        RenderParams rp = new RenderParams(material);
+        rp.worldBounds = new Bounds(Vector3.zero, 10000 * Vector3.one); // use tighter bounds
+        rp.matProps = new MaterialPropertyBlock();
+        rp.matProps.SetMatrix("_ObjectToWorld", Matrix4x4.Translate(new Vector3(0, 0, 0)));
+        rp.matProps.SetFloat("_NumInstances", entityCount);
+        rp.matProps.SetBuffer("_Transforms", instanceBuffer);
 
-        // Step 3: Bind instance buffer to material
-        MaterialPropertyBlock mpb = new MaterialPropertyBlock();
-        mpb.SetBuffer("_InstanceData", instanceBuffer);
-
-        // Step 4: Call DrawMeshInstancedIndirect
-        Graphics.DrawMeshInstancedIndirect(mesh, 0, material, new Bounds(Vector3.zero, Vector3.one * 1000), argsBuffer, 0, mpb);
+        Graphics.RenderMeshPrimitives(rp, mesh, 0, entityCount);
     }
 }
