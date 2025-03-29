@@ -4,6 +4,8 @@
 using Friflo.Engine.ECS;
 using System;
 using System.Numerics;
+using Unity.Mathematics;
+using UnityEngine.Profiling;
 // Note: Avoid game engine dependencies to enable using code in various engines. E.g.
 //  using UnityEngine;
 //  using Godot;
@@ -178,9 +180,10 @@ namespace Example.Systems
             //    //transform.value = Matrix4x4.CreateTranslation(pos);
             //});
 
-
+            Profiler.BeginSample("Update Transforms all Chunks");
             foreach (var (transforms, positions, starts, targets, _) in transPosQuery.Chunks)
             {
+                Profiler.BeginSample("Update Transforms Chunk");
                 var transformSpan = transforms.Span;
                 var positionSpan = positions.Span;
                 var startSpan = starts.Span;
@@ -188,11 +191,19 @@ namespace Example.Systems
                 for (int n = 0; n < positions.Length; n++)
                 {
                     //ref var pos = ref positionSpan[n];
+                    //Profiler.BeginSample("lerp");
                     var pos = Vector3.Lerp(startSpan[n].value, targetSpan[n].value, complete);
+                    //Profiler.EndSample();
                     positionSpan[n].value = pos;
+
+                    //Profiler.BeginSample("world + Matrix4x4.CreateTranslation(pos);");
                     transformSpan[n].value = world + Matrix4x4.CreateTranslation(pos);
+                    //Profiler.EndSample();
                 }
+
+                Profiler.EndSample();
             }
+            Profiler.EndSample();
 
             //ParallelQueryJob(transPosQuery, world, complete);
         }

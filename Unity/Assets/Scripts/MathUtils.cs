@@ -10,7 +10,7 @@ public static class MathExtensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static UnityEngine.Matrix4x4 AsUnityMatrix4x4(this System.Numerics.Matrix4x4 m)
     {
-        return Unsafe.As<System.Numerics.Matrix4x4, UnityEngine.Matrix4x4>(ref m);
+        //return Unsafe.As<System.Numerics.Matrix4x4, UnityEngine.Matrix4x4>(ref m);
         return new UnityEngine.Matrix4x4
         {
             m00 = m.M11,    m01 = m.M21,    m02 = m.M31,    m03 = m.M41,

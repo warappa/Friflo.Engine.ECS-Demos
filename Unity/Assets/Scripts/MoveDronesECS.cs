@@ -3,8 +3,10 @@
 
 using System;
 using Example.Systems;
+using NumericsConverter;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Profiling;
 
 // ReSharper disable InconsistentNaming
 public class MoveDronesECS : MonoBehaviour
@@ -125,15 +127,27 @@ public class MoveDronesECS : MonoBehaviour
         {
             foreach (ref var trans in transforms.Span)
             {
-                ref var data = ref instData[n++];
-                data = trans.value.AsUnityMatrix4x4();
+                //ref var data = ref instData[n++];
+                //data = trans.value.AsUnityMatrix4x4();
+                //instData[n++] = trans.value.AsUnityMatrix4x4();
+                SetValue(ref instData[n++], ref trans.value);
+                //instData[n++] = trans.value.ToUnity();
             }
         }
     }
 
+    private void SetValue(ref Matrix4x4 target, ref System.Numerics.Matrix4x4 source)
+    {
+        target.m00 = source.M11; target.m01 = source.M21; target.m02 = source.M31; target.m03 = source.M41;
+        target.m10 = source.M12; target.m11 = source.M22; target.m12 = source.M32; target.m13 = source.M42;
+        target.m20 = source.M13; target.m21 = source.M23; target.m22 = source.M33; target.m23 = source.M43;
+        target.m30 = source.M14; target.m31 = source.M24; target.m32 = source.M34; target.m33 = source.M44;
+    }
+
     private void UpdateGraphicsMesh()
     {
-        instanceBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, instData.Length, sizeof(float) * 16);
+        Profiler.BeginSample("UpdateGraphicsMesh");
+
         instanceBuffer.SetData(instData);
 
         RenderParams rp = new RenderParams(material);
@@ -144,5 +158,8 @@ public class MoveDronesECS : MonoBehaviour
         rp.matProps.SetBuffer("_Transforms", instanceBuffer);
 
         Graphics.RenderMeshPrimitives(rp, mesh, 0, entityCount);
+
+        Profiler.EndSample();
     }
 }
+

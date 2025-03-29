@@ -1241,7 +1241,7 @@ MonoBehaviour:
   count: {fileID: 1787104366}
   fpsText: {fileID: 524929425}
   material: {fileID: 2100000, guid: fce60017a60f0624d8d8f101511d832f, type: 2}
-  mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+  mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &985690055
 GameObject:
   m_ObjectHideFlags: 0
