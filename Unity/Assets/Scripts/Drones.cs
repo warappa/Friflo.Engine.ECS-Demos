@@ -214,7 +214,7 @@ namespace Example.Systems
 
                     //transformSpan[n].value = new Matrix4x4(Vector4.zero, Vector4.zero, Vector4.zero, new Vector4(pos.x, pos.y, pos.z, 1)); //world.Translate(pos);
                     //transformSpan[n].value = Matrix4x4.identity;
-                    transformSpan[n].value = Matrix4x4.identity.Translate(pos);
+                    transformSpan[n].value = world.Translate(pos);
                     //Profiler.EndSample();
                 }
 

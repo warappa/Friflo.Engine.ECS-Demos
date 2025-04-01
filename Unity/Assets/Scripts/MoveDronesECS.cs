@@ -34,7 +34,7 @@ public class MoveDronesECS : MonoBehaviour
         UpdateGuiCount();
         rp = new RenderParams(material);
         instData = new Matrix4x4[drones.maxDroneCount];
-        GameObject.Find("Editor Plane").gameObject.SetActive(false);
+        //GameObject.Find("Editor Plane").gameObject.SetActive(false);
 
         instanceBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, instData.Length, sizeof(float) * 16);
     }
@@ -115,7 +115,7 @@ public class MoveDronesECS : MonoBehaviour
 
     private void UpdateDronesTransforms(float deltaTime)
     {
-        drones.UpdateTransforms(deltaTime, default);
+        drones.UpdateTransforms(deltaTime, Matrix4x4.identity);
     }
 
     private void UpdateTransformsArray()
@@ -158,6 +158,16 @@ public class MoveDronesECS : MonoBehaviour
         rp.matProps.SetBuffer("_Transforms", instanceBuffer);
 
         Graphics.RenderMeshPrimitives(rp, mesh, 0, entityCount);
+
+        //var n = 0;
+        //foreach (var (transforms, _) in drones.transQuery.Chunks)
+        //{
+        //    foreach (ref var trans in transforms.Span)
+        //    {
+        //        instData[n++] = trans.value;
+        //    }
+        //}
+        //Graphics.RenderMeshInstanced(rp, mesh, 0, instData, entityCount);
 
         Profiler.EndSample();
     }
